@@ -4,7 +4,8 @@ import {User} from "../models/user.model.js"
 import {ApiError} from "../utils/ApiError.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {asyncHandler} from "../utils/asyncHandler.js"
-import {uploadOnCloudinary} from "../utils/cloudinary.js"
+import {uploadOnCloudinary, deleteFromCloudinary} from "../utils/cloudinary.js"
+import { upload } from "../middlewares/multer.middleware.js"
 
 
 const getAllVideos = asyncHandler(async (req, res) => {
@@ -56,7 +57,9 @@ const publishAVideo = asyncHandler(async (req, res) => {
 
     const video = await Video.create({
         videoFile: videoResponse.url,
+        videoFilePublicId: videoResponse.public_id,
         thumbnail: thumbnailResponse.url,
+        thumbnailPublicId: thumbnailResponse.public_id,
         title: title,
         description: description,
         duration: videoResponse.duration,
@@ -86,12 +89,52 @@ const getVideoById = asyncHandler(async (req, res) => {
 const updateVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     //TODO: update video details like title, description, thumbnail
+    if(!videoId) throw new ApiError(400, "No videoid found.");
 
+    const {title, description} = req.body;
+    const thumbnailFilePath = req.file?.path;
+
+    if(!title && !description && !thumbnailFilePath) throw new ApiError(400, "Enter data to be updated like title, description, thumbnail.");
+    const video = await Video.findById(videoId);
+
+    if(title) {
+        video.title = title;
+    }
+    if(description) {
+        video.description = description;
+    }
+    if(thumbnailFilePath) {
+        const response = await uploadOnCloudinary(thumbnailFilePath);
+        if(!response) throw new ApiError(500, "Failed to upload file.");
+        video.thumbnail = response.url;
+
+        const isDeleted = await deleteFromCloudinary(video.thumbnailPublicId, 'image');
+        //if(!isDeleted?.result !== "ok") throw new ApiError(500,"Failed to delete old thumbnail file.");
+        video.thumbnailPublicId = response.public_id;
+    }
+
+    await video.save({validateBeforeSave: false});
+    const updatedVideo = Video.findById(videoId).select("-owner");
+
+    if(!updatedVideo) throw new ApiError(500, "Failed to update video.");
+    res.json(new ApiResponse(200, updatedVideo, "Video updated successfully."));
 })
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     //TODO: delete video
+    if(!videoId) throw new ApiError(400, "Pass a valid videoId.");
+
+    const video = await Video.findById(videoId);
+    if(!video) throw new ApiError(401, `Video to be deleted with videoId ${videoId} not found.`);
+
+    const isVideoDeleted = await deleteFromCloudinary(video?.videoFilePublicId, 'video');
+    const isThumbnailDeleted = await deleteFromCloudinary(video?.thumbnailPublicId, 'image');
+
+    if(isVideoDeleted?.result !== "ok" || isThumbnailDeleted?.result !== "ok") throw new ApiError(500, `Video or Thumbnail could not be deleted.`);
+
+    const result = await Video.findByIdAndDelete(videoId);
+    return res.status(200).json(new ApiResponse(200, result, "Video deleted successfully."));
 })
 
 const togglePublishStatus = asyncHandler(async (req, res) => {

@@ -1,5 +1,6 @@
 import {v2 as cloudinary} from "cloudinary"
 import fs from "fs"
+import { resourceLimits } from "worker_threads";
 
 
 cloudinary.config({
@@ -10,22 +11,38 @@ cloudinary.config({
 
 const uploadOnCloudinary = async (localFilePath) => {
     try {
-        if (!localFilePath) return null
-        //upload the file on cloudinary
-        const response = await cloudinary.uploader.upload(localFilePath, {
-            resource_type: "auto"
-        })
-        // file has been uploaded successfull
-        //console.log("file is uploaded on cloudinary ", response.url);
-        fs.unlinkSync(localFilePath)
-        return response;
+      if(!localFilePath || !fs.existsSync(localFilePath)) return null;
 
+      // upload to cloudinary
+      const response = await cloudinary.uploader.upload(
+        localFilePath,
+        {resource_type: "auto"},
+      )
+
+      console.log("Response from cloudinary ", response);
+      fs.unlinkSync(localFilePath); //unlink locally saved file.
+
+      return response;
+    }
+    catch (error) {
+      console.error("An error occured while uploading file to cloudinary ", error.message);
+      fs.unlinkSync(localFilePath); //unlink locally saved file.
+      return null;
+    }
+};
+
+const deleteFromCloudinary = async (public_id, resource_type) => {
+    try {
+      if(!public_id) return null;
+
+      const response = await cloudinary.uploader.destroy(public_id, {resource_type: resource_type});
+      console.log("Response from cloudinary ", response);
+
+      return response;
     } catch (error) {
-        fs.unlinkSync(localFilePath) // remove the locally saved temporary file as the upload operation got failed
-        return null;
+      console.error("An error occured while deleting file from cloudinary ", error.message);
+      return null;
     }
 }
 
-
-
-export {uploadOnCloudinary}
+export {uploadOnCloudinary, deleteFromCloudinary}

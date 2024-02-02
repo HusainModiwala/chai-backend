@@ -7,20 +7,28 @@ const videoSchema = new Schema(
             type: String, //cloudinary url
             required: true
         },
+        videoFilePublicId: {
+            type: String, //cloudinary url
+            required: true
+        },
         thumbnail: {
             type: String, //cloudinary url
             required: true
         },
+        thumbnailPublicId: {
+            type: String, //cloudinary url
+            required: true
+        },
         title: {
-            type: String, 
+            type: String,
             required: true
         },
         description: {
-            type: String, 
+            type: String,
             required: true
         },
         duration: {
-            type: Number, 
+            type: Number,
             required: true
         },
         views: {
@@ -36,7 +44,7 @@ const videoSchema = new Schema(
             ref: "User"
         }
 
-    }, 
+    },
     {
         timestamps: true
     }
