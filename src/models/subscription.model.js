@@ -8,6 +8,10 @@ const subscriptionSchema = new Schema({
     channel: {
         type: Schema.Types.ObjectId, // one to whom 'subscriber' is subscribing
         ref: "User"
+    },
+    isSubscribed: {
+        type: Boolean,
+        default: true
     }
 }, {timestamps: true})
 
