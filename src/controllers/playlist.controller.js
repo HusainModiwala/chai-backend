@@ -80,12 +80,35 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
 const deletePlaylist = asyncHandler(async (req, res) => {
     const {playlistId} = req.params
     // TODO: delete playlist
+
+    if(!playlistId || !isValidObjectId(playlistId)) throw new ApiError(400, "Enter valid playlistId to be deleted.");
+
+    const playlistExists = await Playlist.findOne({_id: playlistId, owner: req.user?._id});
+    if(!playlistExists) throw new ApiError(400, "LoggedIn user has no valid playlist with given playlistId.");
+
+    const deletedPlaylist = await Playlist.findByIdAndDelete(playlistId);
+    return res.json(new ApiResponse(200, deletedPlaylist, "PLaylist deleted successfully."));
 })
 
 const updatePlaylist = asyncHandler(async (req, res) => {
     const {playlistId} = req.params
     const {name, description} = req.body
     //TODO: update playlist
+    
+    if(!playlistId || !isValidObjectId(playlistId)) throw new ApiError(400, "Enter valid playlistId to be deleted.");
+    if(!name && !description) throw new ApiError(400, "Enter valid name or description to be updated.");
+
+    const playlistExists = await Playlist.findOne({_id: playlistId, owner: req.user?._id});
+    if(!playlistExists) throw new ApiError(400, "LoggedIn user has no valid playlist with given playlistId.");
+
+    const updatedPlaylist = await Playlist.findByIdAndUpdate(playlistId, {$set: {
+                name: name ?? playlistExists.name,
+                description: description ?? playlistExists.description
+            }
+        },
+        {new: true}
+    );
+    return res.json(new ApiResponse(200, updatedPlaylist, "PLaylist updated successfully."));
 })
 
 export {
